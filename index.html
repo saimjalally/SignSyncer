@@ -296,6 +296,28 @@
 
   ::selection{background:var(--blue-500);color:#fff;}
   @media (prefers-reduced-motion: reduce){*{transition:none !important;animation:none !important;scroll-behavior:auto !important;}}
+  .field-error{font-size:12px;color:#b5482f;min-height:16px;margin-top:4px;}
+  .input-invalid{border-color:#b5482f!important;box-shadow:0 0 0 3px rgba(181,72,47,.12)!important;}
+  .dynamic-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;margin-top:18px;}
+  .dynamic-card h4{margin:0 0 10px;font-family:'Space Grotesk',sans-serif;}
+  .dynamic-card p,.dynamic-card li{font-size:13.5px;color:var(--ink-500);line-height:1.55;}
+  .modal-backdrop{position:fixed;inset:0;background:rgba(12,15,18,.58);backdrop-filter:blur(6px);z-index:100;display:none;align-items:center;justify-content:center;padding:20px;}
+  .modal-backdrop.show{display:flex;}
+  .modal{width:min(560px,100%);max-height:88vh;overflow:auto;background:#fff;border-radius:18px;padding:26px;border:1px solid var(--line);box-shadow:0 30px 80px rgba(0,0,0,.28);}
+  .modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:16px;}
+  .modal-head h3{font-size:24px;}
+  .modal-close{border:1px solid var(--line);background:#fff;border-radius:9px;width:34px;height:34px;cursor:pointer;font-size:18px;}
+  .modal form{display:grid;gap:12px;}
+  .modal textarea,.modal input,.modal select{font-family:'Inter',sans-serif;font-size:14px;padding:11px 12px;border-radius:9px;border:1.5px solid var(--line);outline:none;}
+  .modal textarea{min-height:96px;resize:vertical;}
+  .record-list{display:grid;gap:10px;margin-top:12px;}
+  .record{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--paper);}
+  .record strong{display:block;margin-bottom:4px;}
+  .record small{color:var(--ink-500);}
+  .price-calc{display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:22px;}
+  .price-calc input{width:110px;padding:10px;border:1.5px solid var(--line);border-radius:9px;}
+  .ai-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;}
+
 </style>
 </head>
 <body>
@@ -311,7 +333,7 @@
       <a href="#faq">FAQ</a>
     </div>
     <div class="nav-cta">
-      <a class="btn btn-ghost btn-sm" href="#" onclick="return false;">Log in</a>
+      <button class="btn btn-ghost btn-sm" data-modal="login">Log in</button>
       <a class="btn btn-blue btn-sm" href="#studio">Build my signature</a>
     </div>
   </div>
@@ -459,6 +481,7 @@
           <button class="btn btn-primary btn-sm" id="btn-copy">Copy signature HTML</button>
           <button class="btn btn-ghost btn-sm" id="btn-copy-text">Copy as plain text</button>
           <button class="btn btn-ghost btn-sm" id="btn-download">Download .html</button>
+          <button class="btn btn-blue btn-sm" id="btn-ai">AI improve CTA</button>
           <span class="copy-feedback" id="copy-feedback">Copied ✓</span>
         </div>
       </div>
@@ -683,6 +706,7 @@
       <span class="eyebrow">Pricing</span>
       <h2>Straightforward plans, no seat surprises</h2>
     </div>
+    <div class="price-calc"><label for="seat-count">Team size</label><input id="seat-count" type="number" min="1" value="12"><strong id="price-estimate">Estimated: $108/mo</strong></div>
     <div class="pricing-grid">
       <div class="price-card">
         <div class="plan-name">Individual</div>
@@ -720,7 +744,7 @@
           <li>SSO &amp; SCIM provisioning</li>
           <li>Dedicated support</li>
         </ul>
-        <button class="btn btn-ghost" onclick="return false;">Talk to sales</button>
+        <button class="btn btn-ghost" data-modal="sales">Talk to sales</button>
       </div>
     </div>
   </div>
@@ -785,17 +809,17 @@
       <div>
         <h4>Company</h4>
         <ul>
-          <li><a href="#" onclick="return false;">About</a></li>
-          <li><a href="#" onclick="return false;">Careers</a></li>
-          <li><a href="#" onclick="return false;">Blog</a></li>
+          <li><a href="#" data-page="about">About</a></li>
+          <li><a href="#" data-page="careers">Careers</a></li>
+          <li><a href="#" data-page="blog">Blog</a></li>
         </ul>
       </div>
       <div>
         <h4>Support</h4>
         <ul>
           <li><a href="#faq">FAQ</a></li>
-          <li><a href="#" onclick="return false;">Help center</a></li>
-          <li><a href="#" onclick="return false;">Contact</a></li>
+          <li><a href="#" data-page="help">Help center</a></li>
+          <li><a href="#" data-modal="contact">Contact</a></li>
         </ul>
       </div>
     </div>
@@ -805,6 +829,14 @@
     </div>
   </div>
 </footer>
+
+
+<div id="modal-backdrop" class="modal-backdrop" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-head"><div><h3 id="modal-title">SignSyncer</h3><p id="modal-subtitle"></p></div><button class="modal-close" id="modal-close" aria-label="Close">×</button></div>
+    <div id="modal-body"></div>
+  </div>
+</div>
 
 <div id="toast"><span class="dot"></span><span id="toast-text">Done</span></div>
 
@@ -917,7 +949,7 @@
 
   Object.keys(fields).forEach(key => {
     const el = $(fields[key]);
-    el.addEventListener('input', () => { state[key] = el.value; render(); });
+    el.addEventListener('input', () => { state[key] = key === 'website' ? normalizeWebsite(el.value) : el.value; render(); });
   });
 
   $$('.layout-tab').forEach(tab => {
@@ -968,6 +1000,7 @@
   }
 
   $('#btn-copy').addEventListener('click', async () => {
+    if(!validateAll()) return showToast('Fix validation errors before copying');
     const html = buildSignatureHTML();
     await copyToClipboard(html);
     flashCopyLabel();
@@ -983,6 +1016,7 @@
   });
 
   $('#btn-download').addEventListener('click', () => {
+    if(!validateAll()) return showToast('Fix validation errors before downloading');
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Email Signature</title></head><body>${buildSignatureHTML()}</body></html>`;
     const blob = new Blob([html], {type: 'text/html'});
     const url = URL.createObjectURL(blob);
@@ -1038,6 +1072,142 @@
       $$('.role-panel').forEach(p => p.classList.toggle('active', p.dataset.rolePanel === role));
     });
   });
+
+
+
+  const STORAGE_KEY = 'signsyncer.signature.v1';
+  const LEADS_KEY = 'signsyncer.leads.v1';
+  const USER_KEY = 'signsyncer.user.v1';
+
+  function normalizeWebsite(value){
+    return String(value || '').trim().replace(/^https?:\/\//i,'').replace(/\/$/,'');
+  }
+
+  function persistState(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+
+  function loadState(){
+    try{
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+      if(saved && typeof saved === 'object') Object.assign(state, saved, {website: normalizeWebsite(saved.website)});
+    }catch(e){ localStorage.removeItem(STORAGE_KEY); }
+    Object.keys(fields).forEach(key => { const el = $(fields[key]); if(el) el.value = state[key] || ''; });
+    $$('.layout-tab').forEach(t => t.classList.toggle('active', t.dataset.layout === state.layout));
+    $$('.swatch').forEach(sw => sw.classList.toggle('active', sw.dataset.color === state.color));
+  }
+
+  function setError(input, message){
+    let error = input.parentElement.querySelector('.field-error');
+    if(!error){ error = document.createElement('div'); error.className = 'field-error'; input.parentElement.appendChild(error); }
+    input.classList.toggle('input-invalid', Boolean(message));
+    error.textContent = message || '';
+  }
+
+  function validateField(key){
+    const input = $(fields[key]);
+    const value = input.value.trim();
+    let message = '';
+    if(key === 'name' && !value) message = 'Name is required for a usable signature.';
+    if(key === 'email' && value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) message = 'Enter a valid email address.';
+    if(key === 'website' && value && /\s/.test(value)) message = 'Website cannot contain spaces.';
+    setError(input, message);
+    return !message;
+  }
+
+  function validateAll(){
+    return Object.keys(fields).map(validateField).every(Boolean);
+  }
+
+  function getRecords(){
+    try{ return JSON.parse(localStorage.getItem(LEADS_KEY) || '[]'); }catch(e){ return []; }
+  }
+
+  function saveRecord(type, data){
+    const records = getRecords();
+    records.unshift({type, data, createdAt: new Date().toISOString()});
+    localStorage.setItem(LEADS_KEY, JSON.stringify(records.slice(0,25)));
+  }
+
+  function openModal(kind){
+    const backdrop = $('#modal-backdrop');
+    const title = $('#modal-title');
+    const subtitle = $('#modal-subtitle');
+    const body = $('#modal-body');
+    const forms = {
+      login: ['Log in', 'Create a local demo workspace or restore your saved signature.', `<form id="modal-form"><input name="email" type="email" placeholder="Work email" required><button class="btn btn-blue" type="submit">Continue</button></form><div class="record-list" id="record-list"></div>`],
+      sales: ['Talk to sales', 'Tell us about your rollout and we will save the request locally for follow-up integration.', `<form id="modal-form"><input name="name" placeholder="Your name" required><input name="email" type="email" placeholder="Work email" required><input name="seats" type="number" min="1" placeholder="Team seats" required><textarea name="notes" placeholder="Goals, timeline, identity provider, compliance needs"></textarea><button class="btn btn-blue" type="submit">Request consultation</button></form>`],
+      contact: ['Contact support', 'Send a support request from this static deployment. Records are stored in your browser until wired to a backend.', `<form id="modal-form"><input name="email" type="email" placeholder="Your email" required><select name="topic"><option>Signature setup</option><option>Billing</option><option>Security</option><option>Bug report</option></select><textarea name="message" placeholder="How can we help?" required></textarea><button class="btn btn-blue" type="submit">Save support request</button></form>`]
+    };
+    const [h, sub, html] = forms[kind] || forms.contact;
+    title.textContent = h; subtitle.textContent = sub; body.innerHTML = html; backdrop.classList.add('show'); backdrop.setAttribute('aria-hidden','false');
+    const form = $('#modal-form');
+    if(form){
+      form.addEventListener('submit', e => {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(form).entries());
+        if(kind === 'login') localStorage.setItem(USER_KEY, JSON.stringify({email:data.email, signedInAt:new Date().toISOString()}));
+        saveRecord(kind, data);
+        showToast(kind === 'login' ? 'Workspace saved' : 'Request saved');
+        closeModal();
+      });
+    }
+    const list = $('#record-list');
+    if(list){
+      list.innerHTML = getRecords().slice(0,5).map(r => `<div class="record"><strong>${escapeHtml(r.type)}</strong><small>${escapeHtml(new Date(r.createdAt).toLocaleString())}</small></div>`).join('') || '<p>No local activity yet.</p>';
+    }
+  }
+
+  function closeModal(){ $('#modal-backdrop').classList.remove('show'); $('#modal-backdrop').setAttribute('aria-hidden','true'); }
+
+  function openPage(page){
+    const content = {
+      about:['About SignSyncer','SignSyncer helps teams create, validate, copy, and deploy on-brand signatures directly from the browser.'],
+      careers:['Careers','We are building lightweight tooling for brand operations, IT, and revenue teams. Check back as roles open.'],
+      blog:['Blog','Practical guides: email signature governance, UTM hygiene, compliance-safe disclaimers, and rollout checklists.'],
+      help:['Help center','Use the studio fields to update the live preview, copy HTML for Gmail or Outlook, download a reusable file, and save requests through the contact forms.']
+    }[page];
+    if(!content) return;
+    $('#modal-title').textContent = content[0]; $('#modal-subtitle').textContent = '';
+    $('#modal-body').innerHTML = `<p>${content[1]}</p><div class="dynamic-card"><h4>Your current signature</h4><div>${buildSignatureHTML()}</div></div>`;
+    $('#modal-backdrop').classList.add('show');
+  }
+
+  async function improveCta(){
+    const apiKey = prompt('Optional: enter an OpenAI API key to generate a tailored CTA. Leave blank to use the built-in optimizer.');
+    if(!apiKey){
+      state.cta = `Connect with ${state.company || state.name} →`;
+      $('#f-cta').value = state.cta; render(); persistState(); showToast('CTA optimized locally'); return;
+    }
+    $('#btn-ai').disabled = true;
+    try{
+      const res = await fetch('https://api.openai.com/v1/responses', {method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`}, body:JSON.stringify({model:'gpt-4.1-mini', input:`Write one concise email signature CTA under 45 characters for ${state.name}, ${state.title} at ${state.company}.`})});
+      if(!res.ok) throw new Error(`OpenAI request failed (${res.status})`);
+      const data = await res.json();
+      const text = (data.output_text || '').trim().replace(/^['"]|['"]$/g,'');
+      if(!text) throw new Error('OpenAI returned no text');
+      state.cta = text; $('#f-cta').value = text; render(); persistState(); showToast('CTA generated with OpenAI');
+    }catch(e){ showToast(e.message || 'Unable to generate CTA'); }
+    finally{ $('#btn-ai').disabled = false; }
+  }
+
+  Object.keys(fields).forEach(key => {
+    const el = $(fields[key]);
+    el.addEventListener('blur', () => validateField(key));
+    el.addEventListener('input', () => persistState());
+  });
+  $$('.layout-tab,.swatch').forEach(el => el.addEventListener('click', persistState));
+  $$('[data-modal]').forEach(el => el.addEventListener('click', e => { e.preventDefault(); openModal(el.dataset.modal); }));
+  $$('[data-page]').forEach(el => el.addEventListener('click', e => { e.preventDefault(); openPage(el.dataset.page); }));
+  $('#modal-close').addEventListener('click', closeModal);
+  $('#modal-backdrop').addEventListener('click', e => { if(e.target.id === 'modal-backdrop') closeModal(); });
+  document.addEventListener('keydown', e => { if(e.key === 'Escape') closeModal(); });
+  $('#btn-ai').addEventListener('click', improveCta);
+  $('#seat-count').addEventListener('input', e => {
+    const seats = Math.max(1, Number(e.target.value || 1));
+    $('#price-estimate').textContent = `Estimated: $${seats * 9}/mo`;
+  });
+  loadState();
 
   render();
 })();
