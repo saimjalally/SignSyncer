@@ -1,0 +1,1 @@
+{"scripts":{"build":"node --check src/main.js","dev":"python3 -m http.server 5173","preview":"python3 -m http.server 4173"},"dependencies":{},"devDependencies":{}}
