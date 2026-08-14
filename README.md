@@ -10,12 +10,14 @@ A Vercel-compatible SaaS web application for secure signature operations, accoun
 
 ## Required environment variables
 
+This is a simple static JavaScript app, not a Vite project. Vercel still provides environment variables to `npm run build`, and `scripts/build.mjs` injects only the public Supabase browser configuration into `dist/src/supabase-config.js`. The browser never needs manual `localStorage` setup.
+
 | Variable | Public/secret | Purpose | Configure in Vercel |
 | --- | --- | --- | --- |
-| `VITE_SUPABASE_URL` | Public | Supabase project URL used by the browser client. | Project Settings → Environment Variables |
-| `VITE_SUPABASE_ANON_KEY` | Public | Supabase anonymous key. Access is restricted by RLS policies below. | Project Settings → Environment Variables |
+| `VITE_SUPABASE_URL` | Public | Supabase project URL used by the browser client, for example `https://your-project-ref.supabase.co`. | Project Settings → Environment Variables |
+| `VITE_SUPABASE_ANON_KEY` | Public | Supabase anonymous/publishable key. Access is restricted by RLS policies below. | Project Settings → Environment Variables |
 
-Do not expose Supabase service-role keys in this application.
+Do not expose Supabase service-role keys in this application. Never add real Supabase credentials to GitHub.
 
 ## Supabase schema and RLS
 
@@ -83,11 +85,23 @@ create policy "Users update own notifications" on notifications for update using
 
 ## Deployment
 
-Vercel should run `npm run build` and serve the generated `dist` directory. The `vercel.json` file also keeps the single-page app fallback so direct links such as `/dashboard` and `/support/new` resolve to `index.html`.
+1. In Supabase, copy the project URL and the public anon/publishable key. Do not use the service-role key.
+2. In Vercel, open Project Settings → Environment Variables.
+3. Add `VITE_SUPABASE_URL` with the Supabase project URL for each environment you deploy, such as Production, Preview, and Development.
+4. Add `VITE_SUPABASE_ANON_KEY` with the Supabase public anon/publishable key for the same environments.
+5. Redeploy the project so Vercel runs `npm run build` with those variables available.
+6. Vercel should serve the generated `dist` directory. The `vercel.json` file sets `outputDirectory` to `dist` and keeps the single-page app fallback so direct links such as `/dashboard` and `/support/new` resolve to `index.html`.
+
+If either public Supabase value is missing at build time, the deployed app intentionally shows the setup warning and disables backend actions. When both values are present, the warning is hidden and the browser client connects to Supabase.
 
 ## Development
 
+For local builds, copy `.env.example` to `.env` and fill in your own Supabase public URL and anon/publishable key. `.env` is gitignored so real credentials are not committed.
+
 ```bash
-npm run dev
+cp .env.example .env
 npm run build
+npm run preview
 ```
+
+You can also run the unbuilt source with `npm run dev`; it uses the checked-in empty `src/supabase-config.js` placeholder unless you provide a local config file yourself.
