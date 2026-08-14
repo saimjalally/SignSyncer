@@ -81,6 +81,10 @@ create policy "Users read own notifications" on notifications for select using (
 create policy "Users update own notifications" on notifications for update using (auth.uid() = user_id);
 ```
 
+## Deployment
+
+Vercel should run `npm run build` and serve the generated `dist` directory. The `vercel.json` file also keeps the single-page app fallback so direct links such as `/dashboard` and `/support/new` resolve to `index.html`.
+
 ## Development
 
 ```bash
