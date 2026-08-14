@@ -19,69 +19,46 @@ This is a simple static JavaScript app, not a Vite project. Vercel still provide
 
 Do not expose Supabase service-role keys in this application. Never add real Supabase credentials to GitHub.
 
-## Supabase schema and RLS
+## Supabase setup
 
-Run this SQL in Supabase before launch:
+### 1. Apply the database migration
 
-```sql
-create table if not exists profiles (
-  id uuid primary key references auth.users(id) on delete cascade,
-  full_name text not null default '',
-  avatar_url text,
-  role text not null default 'user' check (role in ('user','support_agent','admin')),
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
+Run the migration in `supabase/migrations/20260814000000_create_auth_app_tables.sql` before testing authenticated database flows. You can apply it with the Supabase CLI:
 
-create table if not exists support_tickets (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  subject text not null check (char_length(subject) between 3 and 160),
-  description text not null check (char_length(description) between 10 and 5000),
-  category text not null,
-  priority text not null,
-  status text not null default 'Open',
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-create table if not exists ticket_messages (
-  id uuid primary key default gen_random_uuid(),
-  ticket_id uuid not null references support_tickets(id) on delete cascade,
-  sender_id uuid not null references auth.users(id) on delete cascade,
-  body text not null check (char_length(body) between 1 and 5000),
-  internal boolean not null default false,
-  created_at timestamptz not null default now()
-);
-
-create table if not exists notifications (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  title text not null,
-  body text not null,
-  read_at timestamptz,
-  created_at timestamptz not null default now()
-);
-
-alter table profiles enable row level security;
-alter table support_tickets enable row level security;
-alter table ticket_messages enable row level security;
-alter table notifications enable row level security;
-
-create policy "Users read own profile" on profiles for select using (auth.uid() = id);
-create policy "Users update own profile except role" on profiles for update using (auth.uid() = id) with check (auth.uid() = id and role = (select role from profiles where id = auth.uid()));
-create policy "Users insert own profile" on profiles for insert with check (auth.uid() = id and role = 'user');
-
-create policy "Users read own tickets" on support_tickets for select using (auth.uid() = user_id or exists(select 1 from profiles p where p.id=auth.uid() and p.role in ('support_agent','admin')));
-create policy "Users create own tickets" on support_tickets for insert with check (auth.uid() = user_id);
-create policy "Support updates tickets" on support_tickets for update using (exists(select 1 from profiles p where p.id=auth.uid() and p.role in ('support_agent','admin')));
-
-create policy "Ticket participants read messages" on ticket_messages for select using (exists(select 1 from support_tickets t where t.id=ticket_id and (t.user_id=auth.uid() or exists(select 1 from profiles p where p.id=auth.uid() and p.role in ('support_agent','admin')))));
-create policy "Ticket participants insert messages" on ticket_messages for insert with check (auth.uid() = sender_id and exists(select 1 from support_tickets t where t.id=ticket_id and (t.user_id=auth.uid() or exists(select 1 from profiles p where p.id=auth.uid() and p.role in ('support_agent','admin')))));
-
-create policy "Users read own notifications" on notifications for select using (auth.uid() = user_id);
-create policy "Users update own notifications" on notifications for update using (auth.uid() = user_id);
+```bash
+supabase link --project-ref YOUR_PROJECT_REF
+supabase db push
 ```
+
+Or paste the migration SQL into Supabase Dashboard → SQL Editor and run it once. The migration creates:
+
+- `profiles` for user profile and role data.
+- `support_tickets` for customer support requests.
+- `ticket_messages` for ticket replies.
+- `notifications` for per-user notifications.
+- Row Level Security policies that let users access only their own records while allowing `support_agent` and `admin` profiles to read/update support workflows.
+
+Signup itself uses Supabase Auth and does not require these tables to exist, but profile, support ticket, ticket message, and notification screens do require this migration.
+
+### 2. Configure Supabase Auth URLs
+
+In Supabase Dashboard → Authentication → URL Configuration:
+
+1. Set **Site URL** to your production Vercel origin, for example `https://your-app.vercel.app`.
+2. Add these **Redirect URLs** exactly, replacing the domain with your production domain:
+   - `https://your-app.vercel.app/verify-email`
+   - `https://your-app.vercel.app/reset-password`
+3. If you use preview or custom domains, add those origins too, for example:
+   - `https://your-custom-domain.com/verify-email`
+   - `https://your-custom-domain.com/reset-password`
+   - `http://localhost:4173/verify-email`
+   - `http://localhost:4173/reset-password`
+
+The app sends signup verification links to `/verify-email` and password reset links to `/reset-password` on the current origin. If these URLs are not allow-listed in Supabase, email verification and password recovery will not complete correctly on production.
+
+### 3. Use only public browser credentials
+
+Use the Supabase project URL and anon/publishable key only. Do not add a service-role key to Vercel or this repository. The anon key is safe for browsers when RLS policies are enabled.
 
 ## Deployment
 
